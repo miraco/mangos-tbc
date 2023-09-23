@@ -327,6 +327,7 @@ extern void AddSC_boss_watchkeeper_gargolmar();
 extern void AddSC_instance_ramparts();
 extern void AddSC_boss_magtheridon();                       // HC, magtheridons_lair
 extern void AddSC_instance_magtheridons_lair();
+extern void AddSC_shattered_halls();
 extern void AddSC_boss_grand_warlock_nethekurse();          // HC, shattered_halls
 extern void AddSC_boss_warbringer_omrogg();
 extern void AddSC_boss_warchief_kargath_bladefist();
@@ -693,6 +694,7 @@ void AddScripts()
     AddSC_boss_grand_warlock_nethekurse();                  // HC, shattered_halls
     AddSC_boss_warbringer_omrogg();
     AddSC_boss_warchief_kargath_bladefist();
+    AddSC_shattered_halls();
     AddSC_instance_shattered_halls();
     AddSC_arcatraz();                                       // TK, arcatraz
     AddSC_boss_dalliah();
