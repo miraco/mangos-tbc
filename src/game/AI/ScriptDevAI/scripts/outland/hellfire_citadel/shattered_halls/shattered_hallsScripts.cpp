@@ -424,6 +424,7 @@ struct npc_shattered_hand_legionnaire : public CombatAI
             {
                 DoBroadcastText(aRandomReinfSleeping[urand(0, 4)], m_creature);
                 closest->RemoveAurasDueToSpell(AURA_SLEEPING);
+                SendAIEvent(AI_EVENT_CUSTOM_EVENTAI_C, m_creature, closest);
             }
         }
         else if (m_creature->HasStringId(SEVENTH_LEGIONNAIRE_STRING))
