@@ -336,6 +336,7 @@ INSERT INTO spell_scripts(Id, ScriptName) VALUES
 (35679,'spell_prevent_spell_if_same_aura_on_caster'),
 (36153,'spell_soulbind'),
 (35181,'spell_dive_bomb'),
+(37437,'spell_clear_all_debuffs'),
 (36460,'spell_ultra_deconsolodation_zapper'),
 (37431,'spell_lurker_spout_initial'),
 (37429,'spell_lurker_spout_turning'),
