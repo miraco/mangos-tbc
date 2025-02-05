@@ -103,6 +103,31 @@ UnitAI* GetAI_mob_yenniku(Creature* _Creature)
     return new mob_yennikuAI(_Creature);
 }
 
+struct NpcStealthAura : public AuraScript
+{
+    void OnApply(Aura* aura, bool apply) const
+    {
+        if (apply)
+        {
+            Unit* target = aura->GetTarget();
+            if (target->IsCreature())
+            {
+                target->AI()->SetMeleeEnabled(false);
+                target->AI()->SetCombatScriptStatus(true);
+            }
+        }
+        else if(!apply)
+        {
+            Unit* target = aura->GetTarget();
+            if (target->IsCreature())
+            {
+                target->AI()->SetMeleeEnabled(true);
+                target->AI()->SetCombatScriptStatus(false);
+            }
+        }
+    }
+};
+
 /*######
 ##
 ######*/

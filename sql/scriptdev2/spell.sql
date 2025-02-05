@@ -12,6 +12,7 @@ INSERT INTO spell_scripts(Id, ScriptName) VALUES
 (785,'spell_true_fulfillment'),
 (794,'spell_initialize_images'),
 (802,'spell_mutate_bug'),
+(8822,'spell_npc_stealth'),
 (1121,'spell_entangle_fankriss'),
 (2400,'spell_anubisath_share_powers'),
 (3730,'spell_initialize_image'),
