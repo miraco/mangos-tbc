@@ -30,6 +30,7 @@ EndContentData */
 
 #include "AI/ScriptDevAI/include/sc_common.h"
 #include "AI/ScriptDevAI/base/escort_ai.h"
+#include "World/WorldStateDefines.h"
 
 /*####
 # npc_muglash
@@ -652,10 +653,15 @@ struct DestroyKarangsBanner : public SpellScript
         if (!caster || !caster->IsAlive())
             return;
 
+        // Despawn Gameobject
         if (GameObject* go = GetClosestGameObjectWithEntry(caster, GO_KARANGS_BANNER, 50.0f))
-        {
-            go->ForcedDespawn(0);
-        }
+            go->ForcedDespawn(0);       
+
+        // Change Worldstate so NPCs stop respawning
+        caster->GetMap()->GetVariableManager().SetVariable(WORLD_STATE_CUSTOM_FOULWEALD, 0);
+
+        // SendAIEvent to handle Despawning after leaving Combat
+        caster->AI()->SendAIEventAround(AI_EVENT_CUSTOM_EVENTAI_A, caster, 0, 50);
     }
 };
 

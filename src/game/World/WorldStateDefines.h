@@ -340,6 +340,9 @@ enum WorldStateID : int32
     // Vanilla
     WORLD_STATE_CUSTOM_SPAWN_ANNORA    = 700001,
 
+    // Ashenvale Quest King of the Foulweald
+    WORLD_STATE_CUSTOM_FOULWEALD       = 18005,
+
     WORLD_STATE_CUSTOM_STV_GRP_01      = 330001,
     WORLD_STATE_CUSTOM_STV_GRP_02      = 330002,
 
