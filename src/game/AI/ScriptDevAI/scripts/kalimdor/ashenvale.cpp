@@ -653,9 +653,13 @@ struct DestroyKarangsBanner : public SpellScript
         if (!caster || !caster->IsAlive())
             return;
 
-        // Despawn Gameobject
-        if (GameObject* go = GetClosestGameObjectWithEntry(caster, GO_KARANGS_BANNER, 50.0f))
-            go->ForcedDespawn(0);       
+        // Tested on Classic, spell should despawn ALL Gameobjects
+        GameObjectList bannerList;
+        GetGameObjectListWithEntryInGrid(bannerList, caster, GO_KARANGS_BANNER, 50.f);
+        for (const auto gobanner : bannerList)
+        {
+            gobanner->ForcedDespawn();
+        }   
 
         // Change Worldstate so NPCs stop respawning
         caster->GetMap()->GetVariableManager().SetVariable(WORLD_STATE_CUSTOM_FOULWEALD, 0);
