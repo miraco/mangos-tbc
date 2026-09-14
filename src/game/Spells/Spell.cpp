@@ -1226,6 +1226,8 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
 
     m_damage = target->damage;
     m_healing = target->healing;
+    uint32 blockedAmount = 0;
+    uint32 resistedAmount = 0;
 
     if (missInfo == SPELL_MISS_NONE)                        // In case spell hit target, do all effect on that target
         DoSpellHitOnUnit(unit, effectMask, target);
@@ -1301,6 +1303,8 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
 
         m_absorb = spellDamageInfo.absorb;
         m_damage = spellDamageInfo.damage; // update value so that script handler has access
+        blockedAmount = spellDamageInfo.blocked;
+        resistedAmount = spellDamageInfo.resist;
         OnHit(missInfo); // TODO: After spell damage calc is moved to proper handler - move this before the first if
 
         // Send log damage message to client
@@ -3280,6 +3284,7 @@ SpellCastResult Spell::SpellStart(SpellCastTargets const* targets, Aura* trigger
     // create and add update event for this spell
     m_spellEvent = new SpellEvent(this);
     m_trueCaster->m_events.AddEvent(m_spellEvent, m_trueCaster->m_events.CalculateTime(1));
+    m_trueCaster->SetNextUpdateTime(1);
 
     if (m_trueCaster->IsUnit()) // gameobjects dont have a sense of already casting a spell
     {
@@ -3746,6 +3751,68 @@ void Spell::_handle_immediate_phase()
             m_caster->resetAttackTimer(BASE_ATTACK);
             if (m_caster->hasOffhandWeaponForAttack())
                 m_caster->resetAttackTimer(OFF_ATTACK);
+        }
+    }
+
+    if (m_spellInfo->HasAttribute(SPELL_ATTR_ON_NEXT_SWING) || m_spellInfo->HasAttribute(SPELL_ATTR_ON_NEXT_SWING_NO_DAMAGE))
+    {
+        ObjectGuid targetGuid = m_targets.getUnitTargetGuid();
+        TargetInfo* target = nullptr;
+        for (auto& ihit : m_UniqueTargetInfo)
+            if (ihit.targetGUID == targetGuid)
+                target = &ihit;
+
+        if (target != nullptr)
+        {
+            CalcDamageInfo dmgInfo;
+            uint32 hitInfo = HITINFO_NORMALSWING2 | HITINFO_NOACTION;
+            switch (target->missCondition)
+            {
+                case SPELL_MISS_MISS:
+                    hitInfo = hitInfo | HITINFO_MISS;
+                    dmgInfo.TargetState = VICTIMSTATE_UNAFFECTED;
+                    break;
+                case SPELL_MISS_EVADE:
+                    hitInfo = hitInfo | HITINFO_MISS | HITINFO_SWINGNOHITSOUND;
+                    dmgInfo.TargetState = VICTIMSTATE_EVADES;
+                    break;
+                case SPELL_MISS_NONE:
+                    if (target->isCrit)
+                    {
+                        hitInfo = hitInfo | HITINFO_CRITICALHIT;
+                        dmgInfo.TargetState = VICTIMSTATE_NORMAL;
+                    }
+                    else
+                    {
+                        dmgInfo.TargetState = VICTIMSTATE_NORMAL;
+                    }
+                    break;
+                case SPELL_MISS_PARRY:
+                    dmgInfo.TargetState = VICTIMSTATE_PARRY;
+                    break;
+                case SPELL_MISS_DODGE:
+                    dmgInfo.TargetState = VICTIMSTATE_DODGE;
+                    break;
+                case SPELL_MISS_BLOCK:
+                    hitInfo = hitInfo | HITINFO_BLOCK;
+                    dmgInfo.TargetState = VICTIMSTATE_UNAFFECTED;
+                    break;
+                    // spell has no glancing or crushing
+            }
+
+            dmgInfo.HitInfo = hitInfo;
+            dmgInfo.attacker = m_caster;
+            dmgInfo.target = m_targets.getUnitTarget();
+            dmgInfo.attackType = BASE_ATTACK;
+            dmgInfo.totalDamage = 0; // all filled with 0
+            dmgInfo.subDamage[0].damage = 0;
+            dmgInfo.subDamage[0].damageSchoolMask = m_spellSchoolMask;
+            dmgInfo.subDamage[0].absorb = 0;
+            dmgInfo.subDamage[0].resist = 0;
+            dmgInfo.blockedAmount = 0;
+            dmgInfo.meleeSpellId = m_spellInfo->Id;
+            dmgInfo.attackerState = 0;
+            m_caster->SendAttackStateUpdate(dmgInfo);
         }
     }
 
@@ -4666,7 +4733,10 @@ void Spell::SendChannelStart(uint32 duration)
     }
 
     if (target)
+    {
+        target->SetNextUpdateTime(1);
         m_caster->SetChannelObject(target);
+    }
 
     m_caster->SetUInt32Value(UNIT_CHANNEL_SPELL, m_spellInfo->Id);
     m_caster->addUnitState(UNIT_STAT_CHANNELING);
@@ -5250,7 +5320,7 @@ SpellCastResult Spell::CheckCast(bool strict)
                         if (Creature const* targetCreature = dynamic_cast<Creature*>(target))
                             if ((!targetCreature->GetLootRecipientGuid().IsEmpty()) && !targetCreature->IsTappedBy(static_cast<Player*>(m_trueCaster)))
                                 return SPELL_FAILED_CANT_CAST_ON_TAPPED;
-                    
+
                     // Do not allow spells to complete which are targeting players that are invisible to the caster since the time of cast start
                     if (!m_trueCaster->IsGameObject() && target->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PLAYER_CONTROLLED) && !IsPositiveEffectMask(m_spellInfo, affectedMask, m_trueCaster, target) && !target->IsVisibleForOrDetect(m_caster, m_trueCaster, false, false, true, false, m_spellInfo->HasAttribute(SPELL_ATTR_EX6_IGNORE_PHASE_SHIFT)))
                         return SPELL_FAILED_BAD_TARGETS;
@@ -5613,7 +5683,7 @@ SpellCastResult Spell::CheckCast(bool strict)
                             break;
                         }
                     }
-                            
+
                     if (inCombat)
                         return SPELL_FAILED_TARGET_IN_COMBAT;
                 }
@@ -7516,10 +7586,10 @@ bool Spell::CheckTarget(Unit* target, SpellEffectIndex eff, bool targetB, bool n
     {
         if (target->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_UNTARGETABLE))
             return false;
-        
+
         if (m_spellInfo->HasAttribute(SPELL_ATTR_EX_ONLY_PEACEFUL_TARGETS) && target->IsInCombat())
             return false;
-    }    
+    }
 
     if (m_spellInfo->HasAttribute(SPELL_ATTR_EX3_NOT_ON_AOE_IMMUNE) || m_spellInfo->HasAttribute(SPELL_ATTR_EX5_TREAT_AS_AREA_EFFECT)) // rest done in aoe code
         if (target->IsAOEImmune())
@@ -7860,7 +7930,7 @@ float Spell::GetSpellSpeed() const
 
     if (m_overrideSpeed)
         return m_overridenSpeed;
-    
+
     return m_spellInfo->speed;
 }
 
@@ -8227,11 +8297,16 @@ void Spell::FilterTargetMap(UnitList& filterUnitList, SpellTargetFilterScheme sc
         case SCHEME_CLOSEST_CHAIN:
         {
             Unit* unitTarget = m_targets.getUnitTarget();
-            if (filterUnitList.empty() || filterUnitList.front() != unitTarget)
+            if (filterUnitList.empty())
                 break;
+            if (!unitTarget)
+            {
+                filterUnitList.sort(TargetDistanceOrderNear(m_caster));
+                unitTarget = filterUnitList.front();
+            }
             UnitList newList;
             newList.push_back(unitTarget);
-            filterUnitList.pop_front();
+            std::erase_if(filterUnitList, [&unitTarget](Unit* x) { return x == unitTarget; });
             filterUnitList.sort(TargetDistanceOrderNear(unitTarget));
             Unit* prev = unitTarget;
             UnitList::iterator next = filterUnitList.begin();

@@ -791,6 +791,7 @@ class Creature : public Unit
         std::pair<bool, GuidVector> MarkCallAssistanceOnPull(Unit* enemy);
         void CallAssistanceOnPull(Unit* enemy, GuidVector const& receiverList);
         void SetNoCallAssistance(bool val) { m_AlreadyCallAssistance = val; }
+        bool GetNoCallAssistance() { return m_AlreadyCallAssistance; }
         bool CanAssistTo(const Unit* u, const Unit* enemy, bool checkfaction = true) const;
         bool CanInitiateAttack() const override;
         bool CanCallForAssistance() const override { return m_canCallForAssistance; }
@@ -926,6 +927,8 @@ class Creature : public Unit
         void UnregisterHitBySpell(uint32 spellId);
         void ResetSpellHitCounter();
 
+        uint32 GetNextUpdateTime() override;
+
         HighGuid GetParentHigh() const override { return HIGHGUID_UNIT; }
 
         void Heartbeat() override;
@@ -957,6 +960,9 @@ class Creature : public Unit
         void SetMountInfo(CreatureInfo const* info) override;
 
         void SetModelRunSpeed(float runSpeed) override { m_modelRunSpeed = runSpeed; }
+
+        void SetDelayedPetSpells() { m_delayedPetSpells = true; }
+        void TriggerDelayedPetSpells();
 
         bool IsCombatOnlyStealth() const { return m_combatOnlyStealth; }
         void SetCombatOnlyStealth(bool state) { m_combatOnlyStealth = state; }
@@ -1042,6 +1048,8 @@ class Creature : public Unit
         ObjectGuid m_killer;
 
         bool m_imposedCooldown;
+
+        bool m_delayedPetSpells;
 
         float m_healthMultiplier;
         float m_damageMultiplier;

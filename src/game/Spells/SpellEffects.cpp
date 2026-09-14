@@ -56,6 +56,7 @@
 #include "AI/ScriptDevAI/include/sc_grid_searchers.h"
 #include "Maps/InstanceData.h"
 #include "Entities/Transports.h"
+#include "AI/EventAI/CreatureEventAI.h"
 
 pEffect SpellEffects[MAX_SPELL_EFFECTS] =
 {
@@ -1408,7 +1409,6 @@ void Spell::EffectDummy(SpellEffectIndex eff_idx)
                     if (unitTarget && unitTarget->GetEntry() == 15302)
                     {
                         ((Creature*)unitTarget)->ForcedDespawn();
-                        ((Creature*)unitTarget)->RemoveFromWorld();
                     }
 
                     return;
@@ -3539,7 +3539,7 @@ void Spell::EffectPersistentAA(SpellEffectIndex eff_idx)
     if (eff_idx == EFFECT_INDEX_0 && IsChanneledSpell(m_spellInfo))
     {
         m_caster->SetChannelObject(dynObj);
-        m_caster->SendForcedObjectUpdate();
+        // m_caster->SendForcedObjectUpdate();
     }
 }
 
@@ -6841,9 +6841,6 @@ void Spell::EffectActivateObject(SpellEffectIndex effIdx)
                 case 17731:         // Onyxia - Eruption
                     gameObjTarget->SendGameObjectCustomAnim(gameObjTarget->GetObjectGuid());
                     break;
-                case 46638:         // Brutallus SWP - closes door
-                    gameObjTarget->ResetDoorOrButton();
-                    break;
                 default:
                     if (m_caster)
                         gameObjTarget->Use(m_caster, m_spellInfo);
@@ -6859,10 +6856,7 @@ void Spell::EffectActivateObject(SpellEffectIndex effIdx)
             break;
         case GameObjectActions::CLOSE:
         case GameObjectActions::REBUILD:
-            if (m_spellInfo->Id == 46610)
-                gameObjTarget->Use(m_caster, m_spellInfo);
-            else
-                gameObjTarget->ResetDoorOrButton(m_caster);
+            gameObjTarget->ResetDoorOrButton(m_caster);
             break;
         case GameObjectActions::DESPAWN:
             gameObjTarget->ForcedDespawn();

@@ -166,7 +166,7 @@ enum Swing
     TWOHANDEDSWING             = 2
 };
 
-enum VictimState
+enum VictimState : uint32
 {
     VICTIMSTATE_UNAFFECTED     = 0,                         // seen in relation with HITINFO_MISS
     VICTIMSTATE_NORMAL         = 1,
@@ -182,7 +182,7 @@ enum VictimState
 enum HitInfo
 {
     HITINFO_NORMALSWING         = 0x00000000,
-    HITINFO_UNK0                = 0x00000001,               // req correct packet structure
+    HITINFO_DEBUG               = 0x00000001,               // req correct packet structure
     HITINFO_NORMALSWING2        = 0x00000002,
     HITINFO_LEFTSWING           = 0x00000004,
     HITINFO_UNK3                = 0x00000008,
@@ -191,11 +191,16 @@ enum HitInfo
     HITINFO_RESIST              = 0x00000040,               // resisted atleast some damage
     HITINFO_CRITICALHIT         = 0x00000080,
     HITINFO_UNK8                = 0x00000100,               // wotlk?
+    HITINFO_UNK9                = 0x00000200,
+    HITINFO_UNK10               = 0x00000400,
     HITINFO_BLOCK               = 0x00000800,
-    HITINFO_UNK9                = 0x00002000,               // wotlk?
+    HITINFO_UNK12               = 0x00001000,
+    HITINFO_BLOOD_SPURT         = 0x00002000,               // blood spurt
     HITINFO_GLANCING            = 0x00004000,
     HITINFO_CRUSHING            = 0x00008000,
     HITINFO_NOACTION            = 0x00010000,
+    HITINFO_UNK17               = 0x00020000,
+    HITINFO_UNK18               = 0x00040000,
     HITINFO_SWINGNOHITSOUND     = 0x00080000
 };
 
@@ -687,9 +692,11 @@ struct CalcDamageInfo
     Unit*  target;               // Target for damage
     uint32 totalDamage;
     SubDamageInfo subDamage[MAX_ITEM_PROTO_DAMAGES];
-    uint32 blocked_amount;
+    uint32 blockedAmount;
     uint32 HitInfo;
-    uint32 TargetState;
+    VictimState TargetState;
+    uint32 meleeSpellId;         // next swing spells
+    uint32 attackerState;        // no known use in client
     // Helper
     WeaponAttackType attackType; //
     uint32 procAttacker;
@@ -1690,6 +1697,7 @@ class Unit : public WorldObject
             return m_spellAuraHolders.find(spellId) != m_spellAuraHolders.end();
         }
         bool HasAuraTypeWithCaster(AuraType auratype, ObjectGuid caster) const;
+        bool HasPeriodicAura() const;
         bool HasMechanicMaskOrDispelMaskAura(uint32 dispelMask, uint32 mechanicMask, Unit const* caster) const;
         bool HasNegativeAuraWithInterruptFlag(SpellAuraInterruptFlags flag) const;
         template<typename Func>
@@ -1756,7 +1764,7 @@ class Unit : public WorldObject
         SpellCastResult CastCustomSpell(SpellCastTargets& targets, SpellEntry const* spellInfo, int32 const* bp0, int32 const* bp1, int32 const* bp2, uint32 triggeredFlags, Item* castItem = nullptr, Aura* triggeredByAura = nullptr, ObjectGuid originalCaster = ObjectGuid(), SpellEntry const* triggeredBy = nullptr);
         SpellCastResult CastSpell(SpellCastArgs& args, SpellEntry const* spellInfo, uint32 triggeredFlags, Item* castItem = nullptr, Aura* triggeredByAura = nullptr, ObjectGuid originalCaster = ObjectGuid(), SpellEntry const* triggeredBy = nullptr);
         SpellCastResult CastSpell(SpellCastArgs& args, uint32 spellId, uint32 triggeredFlags, Item* castItem = nullptr, Aura* triggeredByAura = nullptr, ObjectGuid originalCaster = ObjectGuid(), SpellEntry const* triggeredBy = nullptr);
-        
+
         // Single flag overload uint32
         SpellCastResult CastSpell(Unit* Victim, uint32 spellId, TriggerCastFlags triggeredFlags, Item* castItem = nullptr, Aura* triggeredByAura = nullptr, ObjectGuid originalCaster = ObjectGuid(), SpellEntry const* triggeredBy = nullptr)
         { return CastSpell(Victim, spellId, uint32(triggeredFlags), castItem, triggeredByAura, originalCaster, triggeredBy); }
@@ -1787,7 +1795,7 @@ class Unit : public WorldObject
 
         void SendAIReaction(AiReaction reactionType);
 
-        void SendAttackStateUpdate(CalcDamageInfo* calcDamageInfo) const;
+        void SendAttackStateUpdate(CalcDamageInfo const& calcDamageInfo) const;
         void SendAttackStateUpdate(uint32 HitInfo, Unit* target, SpellSchoolMask damageSchoolMask, uint32 Damage, uint32 AbsorbDamage, int32 Resist, VictimState TargetState, uint32 BlockedAmount);
         void SendEnergizeSpellLog(Unit* pVictim, uint32 SpellID, uint32 Damage, Powers powertype) const;
         void SendEnvironmentalDamageLog(uint8 type, uint32 damage, uint32 absorb, int32 resist) const;
@@ -2118,7 +2126,7 @@ class Unit : public WorldObject
         void UpdateVisibilityAndView() override;            // overwrite WorldObject::UpdateVisibilityAndView()
 
         // common function for visibility checks for player/creatures with detection code
-        bool IsVisibleForOrDetect(Unit const* u, WorldObject const* viewPoint, bool detect, bool inVisibleList = false, bool is3dDistance = true, bool spell = false, bool ignorePhase = false) const;     
+        bool IsVisibleForOrDetect(Unit const* u, WorldObject const* viewPoint, bool detect, bool inVisibleList = false, bool is3dDistance = true, bool spell = false, bool ignorePhase = false) const;
 
         // virtual functions for all world objects types
         bool isVisibleForInState(Player const* u, WorldObject const* viewPoint, bool inVisibleList) const override;
@@ -2505,7 +2513,10 @@ class Unit : public WorldObject
 
         uint32 GetDamageDoneByOthers() { return m_damageByOthers; }
         uint32 GetModifierXpBasedOnDamageReceived(uint32 xp);
-        
+
+        void UpdateNextUpdateTime() override;
+        uint32 ShouldPerformObjectUpdate(uint32 const diff) override;
+
         void OverrideMountDisplayId(uint32 newDisplayId);
 
         void UpdateSplinePosition(bool relocateOnly = false);
@@ -2696,6 +2707,7 @@ class Unit : public WorldObject
         Position m_last_notified_position;
         BasicEvent* m_AINotifyEvent;
         ShortTimeTracker m_movesplineTimer;
+        bool m_hasPeriodicAura;
 
         Diminishing m_Diminishing;
 
@@ -2855,7 +2867,7 @@ struct TargetDistanceOrderNear
     // functor for operator ">"
     bool operator()(WorldObject const* _Left, WorldObject const* _Right) const
     {
-        return m_mainTarget->GetDistanceOrder(_Left, _Right, m_distcalc);
+        return m_mainTarget->GetDistanceOrder(_Left, _Right, true, m_distcalc);
     }
 };
 
@@ -2869,7 +2881,7 @@ struct TargetDistanceOrderFarAway
     // functor for operator "<"
     bool operator()(WorldObject const* _Left, WorldObject const* _Right) const
     {
-        return !m_mainTarget->GetDistanceOrder(_Left, _Right, m_distcalc);
+        return !m_mainTarget->GetDistanceOrder(_Left, _Right, true, m_distcalc);
     }
 };
 
@@ -2883,7 +2895,7 @@ struct LowestHPNearestOrder
     bool operator()(Unit const* _Left, Unit const* _Right) const
     {
         if (_Left->GetHealthPercent() == _Right->GetHealthPercent())
-            return m_mainTarget->GetDistanceOrder(_Left, _Right, m_distcalc);
+            return m_mainTarget->GetDistanceOrder(_Left, _Right, true, m_distcalc);
         return _Left->GetHealthPercent() < _Right->GetHealthPercent();
     }
 };

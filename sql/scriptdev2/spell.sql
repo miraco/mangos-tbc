@@ -782,13 +782,15 @@ INSERT INTO spell_scripts(Id, ScriptName) VALUES
 (29354,'spell_gameobject_call_for_help_on_usage'), -- Mining (Master)
 (30434,'spell_gameobject_call_for_help_on_usage'), -- Elemental Seaforium Charge
 (34799,'spell_arcane_devastation'),
+(34700,'spell_allergic_reaction'),
 (34145,'spell_ritual_of_souls_dummy'),
 (34219,'spell_recharging_battery'),
 (32173,'spell_entangling_roots'),
 (34520,'spell_elemental_power_extractor'),
 (35268,'spell_raging_flames_inferno'),
 (39346,'spell_raging_flames_inferno'),
-(34168,'spell_spore_cloud_underbog');
+(34168,'spell_spore_cloud_underbog'),
+(33133,'spell_infinite_transform');
 
 -- Wotlk
 INSERT INTO spell_scripts(Id, ScriptName) VALUES
